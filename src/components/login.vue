@@ -108,6 +108,7 @@ const getFriendList = () => {
   }).then(data => data.json()).then(data => {
       console.log('login', data)
       friendList.value = data.message
+      activeUser.value = friendList.value[0].Username
     })
 }
 
