@@ -14,10 +14,7 @@
         </div>
         <div class="right-panel">
           <div class="message-list">
-            <div class="message-item">1</div>
-            <div class="message-item">1</div>
-           <div class="message-item">1</div>
-            <div class="message-item">1</div>
+            <div v-for="message in messages" class="message-item">{{message.from}}: {{message.message.content}}</div>
           </div>
           <div class="send-area">
             <div class="send-wrap">
@@ -33,6 +30,7 @@
 
 <script setup>
 import { reactive, ref, watch } from "vue";
+import { ipAddr } from '../constant/index'
 
 const username = ref("");
 const password = ref("");
@@ -43,7 +41,7 @@ const token = ref('')
 const friendList = ref([])
 let websocket
 const login = () => {
-  return fetch("http://localhost:8081/login", {
+  return fetch(`http://${ipAddr}:8081/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json; charset=utf-8'
@@ -57,7 +55,7 @@ const login = () => {
       token.value = data.message
         console.log("userName", username.value);
   if (!username.value) return;
-  websocket = new WebSocket(`ws://localhost:8080/ws?token=${token.value}&username=${username.value}`);
+  websocket = new WebSocket(`ws://${ipAddr}:8080/ws?token=${token.value}&username=${username.value}`);
   websocket.onopen = () => {
     console.log("连接成功");
   };
@@ -65,7 +63,14 @@ const login = () => {
     console.log("onmessage", evt);
     const newMessages = evt.data.split("\n");
     console.log("newMessages", newMessages);
-    messages.value = [...messages.value, ...newMessages];
+    messages.value = [...messages.value, ...newMessages.map(json => {
+      const { To, Message, From } = JSON.parse(json)
+      return {
+        to: To,
+        from: From,
+        message: JSON.parse(Message)
+      }
+    })];
   };
   websocket.onclose = (evt) => {
     console.log('websocket关闭', evt)
@@ -74,19 +79,28 @@ const login = () => {
 };
 const send = () => {
     if(!textInput.value) return
-    websocket.send(JSON.stringify({
+    const message = {
         to: activeUser.value,
         from: username.value,
         message: JSON.stringify({
           msgType: 1,
           content: textInput.value
         }),
-    }))
+    }
+    websocket.send(JSON.stringify(message))
+    messages.value.push({
+      to: activeUser.value,
+        from: username.value,
+        message: {
+          msgType: 1,
+          content: textInput.value
+        },
+    })
     textInput.value = ''
 }
 
 const getFriendList = () => {
-  fetch('http://localhost:8081/getFriendList', {
+  fetch(`http://${ipAddr}:8081/getFriendList`, {
     method: 'GET',
     headers: {
       token: token.value
